@@ -11,3 +11,8 @@ logs:
           - type: FileLogAppender
             file: /apps/logs/sylar/system.txt
           - type: StdoutLogAppender
+
+# system:
+#     int_vec:
+#         - 10
+#         - 20

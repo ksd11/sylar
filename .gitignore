@@ -33,3 +33,4 @@ build/
 bin/
 !bin/*/
 .vscode/
+mytest-code/

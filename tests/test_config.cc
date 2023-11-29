@@ -56,9 +56,9 @@ void print_yaml(const YAML::Node& node, int level) {
 }
 
 void test_yaml() {
-    YAML::Node root = YAML::LoadFile("/home/sylar/workspace/sylar/bin/conf/log.yml");
-    //print_yaml(root, 0);
-    //SYLAR_LOG_INFO(SYLAR_LOG_ROOT()) << root.Scalar();
+    YAML::Node root = YAML::LoadFile("./bin/conf/log.yml");
+    // print_yaml(root, 0);
+    // SYLAR_LOG_INFO(SYLAR_LOG_ROOT()) << root.Scalar();
 
     SYLAR_LOG_INFO(SYLAR_LOG_ROOT()) << root["test"].IsDefined();
     SYLAR_LOG_INFO(SYLAR_LOG_ROOT()) << root["logs"].IsDefined();
@@ -96,7 +96,7 @@ void test_config() {
     XX_M(g_str_int_map_value_config, str_int_map, before);
     XX_M(g_str_int_umap_value_config, str_int_umap, before);
 
-    YAML::Node root = YAML::LoadFile("/home/sylar/workspace/sylar/bin/conf/test.yml");
+    YAML::Node root = YAML::LoadFile("./bin/conf/log.yml");
     sylar::Config::LoadFromYaml(root);
 
     SYLAR_LOG_INFO(SYLAR_LOG_ROOT()) << "after: " << g_int_value_config->getValue();
@@ -224,8 +224,9 @@ void test_loadconf() {
 }
 
 int main(int argc, char** argv) {
-    //test_yaml();
-    //test_config();
+    // test_yaml();
+    test_config();
+    return 0;
     //test_class();
     //test_log();
     sylar::EnvMgr::GetInstance()->init(argc, argv);
