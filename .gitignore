@@ -28,3 +28,7 @@ stamp-h1
 *.pc
 depcomp
 *.xcodeproj
+build/
+.cache/
+bin/
+!bin/*/

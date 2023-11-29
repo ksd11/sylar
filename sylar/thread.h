@@ -10,6 +10,7 @@
 #define __SYLAR_THREAD_H__
 
 #include "mutex.h"
+#include<string>
 
 namespace sylar {
 
