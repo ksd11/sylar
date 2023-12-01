@@ -207,7 +207,7 @@ void test_log() {
     static sylar::Logger::ptr system_log = SYLAR_LOG_NAME("system");
     SYLAR_LOG_INFO(system_log) << "hello system" << std::endl;
     std::cout << sylar::LoggerMgr::GetInstance()->toYamlString() << std::endl;
-    YAML::Node root = YAML::LoadFile("/home/sylar/workspace/sylar/bin/conf/log.yml");
+    YAML::Node root = YAML::LoadFile("./bin/conf/log.yml");
     sylar::Config::LoadFromYaml(root);
     std::cout << "=============" << std::endl;
     std::cout << sylar::LoggerMgr::GetInstance()->toYamlString() << std::endl;
@@ -225,10 +225,10 @@ void test_loadconf() {
 
 int main(int argc, char** argv) {
     // test_yaml();
-    test_config();
+    // test_config();
+    // test_class();
+    test_log();
     return 0;
-    //test_class();
-    //test_log();
     sylar::EnvMgr::GetInstance()->init(argc, argv);
     test_loadconf();
     std::cout << " ==== " << std::endl;
