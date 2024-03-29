@@ -39,7 +39,7 @@ Thread::Thread(std::function<void()> cb, const std::string& name)
             << " name=" << name;
         throw std::logic_error("pthread_create error");
     }
-    m_semaphore.wait();
+    m_semaphore.wait(); // 只有thread初始化后才返回
 }
 
 Thread::~Thread() {
@@ -48,6 +48,7 @@ Thread::~Thread() {
     }
 }
 
+// 生成该线程的线程，等待此线程返回
 void Thread::join() {
     if(m_thread) {
         int rt = pthread_join(m_thread, nullptr);
@@ -68,11 +69,11 @@ void* Thread::run(void* arg) {
     pthread_setname_np(pthread_self(), thread->m_name.substr(0, 15).c_str());
 
     std::function<void()> cb;
-    cb.swap(thread->m_cb);
+    cb.swap(thread->m_cb); // 和自己的callback交换
 
     thread->m_semaphore.notify();
 
-    cb();
+    cb(); // 执行callback
     return 0;
 }
 

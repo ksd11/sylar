@@ -45,7 +45,7 @@ private:
 };
 
 /**
- * @brief 局部锁的模板实现
+ * @brief 局部锁的模板实现，析构时自动解锁
  */
 template<class T>
 struct ScopedLockImpl {
