@@ -129,6 +129,8 @@ public:
      */
     static void YieldToHold();
 
+    static void Yield();
+
     /**
      * @brief 返回当前协程的总数量
      */

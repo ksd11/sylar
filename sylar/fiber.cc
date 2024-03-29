@@ -9,15 +9,17 @@ namespace sylar {
 
 static Logger::ptr g_logger = SYLAR_LOG_NAME("system");
 
-static std::atomic<uint64_t> s_fiber_id {0};
-static std::atomic<uint64_t> s_fiber_count {0};
+static std::atomic<uint64_t> s_fiber_id {0}; // 协程id, 自增
+static std::atomic<uint64_t> s_fiber_count {0}; // 协程数量
 
-static thread_local Fiber* t_fiber = nullptr;
-static thread_local Fiber::ptr t_threadFiber = nullptr;
+static thread_local Fiber* t_fiber = nullptr;  // 当前协程
+static thread_local Fiber::ptr t_threadFiber = nullptr; // 主协程
 
+// 栈大小配置，默认128K
 static ConfigVar<uint32_t>::ptr g_fiber_stack_size =
     Config::Lookup<uint32_t>("fiber.stack_size", 128 * 1024, "fiber stack size");
 
+// 栈分配器
 class MallocStackAllocator {
 public:
     static void* Alloc(size_t size) {
@@ -31,6 +33,7 @@ public:
 
 using StackAllocator = MallocStackAllocator;
 
+// 返回协程id
 uint64_t Fiber::GetFiberId() {
     if(t_fiber) {
         return t_fiber->getId();
@@ -38,9 +41,10 @@ uint64_t Fiber::GetFiberId() {
     return 0;
 }
 
+// 只有Main协程才会调用，其他协程走的都是带cb的构造函数
 Fiber::Fiber() {
-    m_state = EXEC;
-    SetThis(this);
+    m_state = EXEC; // 标记协程在运行
+    SetThis(this); // 设置当前协程为自己
 
     if(getcontext(&m_ctx)) {
         SYLAR_ASSERT2(false, "getcontext");
@@ -51,6 +55,7 @@ Fiber::Fiber() {
     SYLAR_LOG_DEBUG(g_logger) << "Fiber::Fiber main";
 }
 
+// 子协程初始化
 Fiber::Fiber(std::function<void()> cb, size_t stacksize, bool use_caller)
     :m_id(++s_fiber_id)
     ,m_cb(cb) {
@@ -76,6 +81,8 @@ Fiber::Fiber(std::function<void()> cb, size_t stacksize, bool use_caller)
 
 Fiber::~Fiber() {
     --s_fiber_count;
+    
+    //子协程
     if(m_stack) {
         SYLAR_ASSERT(m_state == TERM
                 || m_state == EXCEPT
@@ -83,6 +90,7 @@ Fiber::~Fiber() {
 
         StackAllocator::Dealloc(m_stack, m_stacksize);
     } else {
+    // 主协程
         SYLAR_ASSERT(!m_cb);
         SYLAR_ASSERT(m_state == EXEC);
 
@@ -130,20 +138,23 @@ void Fiber::back() {
     }
 }
 
-//切换到当前协程执行
+//切换到当前协程执行，子协程调用，使主协程让出执行权
 void Fiber::swapIn() {
     SetThis(this);
     SYLAR_ASSERT(m_state != EXEC);
     m_state = EXEC;
     if(swapcontext(&Scheduler::GetMainFiber()->m_ctx, &m_ctx)) {
+    // if(swapcontext(&t_threadFiber->m_ctx, &m_ctx)) {
         SYLAR_ASSERT2(false, "swapcontext");
     }
 }
 
-//切换到后台执行
+//切换到后台执行，子协程让出执行权
 void Fiber::swapOut() {
     SetThis(Scheduler::GetMainFiber());
+    // SetThis(t_threadFiber.get());
     if(swapcontext(&m_ctx, &Scheduler::GetMainFiber()->m_ctx)) {
+    // if(swapcontext( &m_ctx, &t_threadFiber->m_ctx)) {
         SYLAR_ASSERT2(false, "swapcontext");
     }
 }
@@ -160,7 +171,7 @@ Fiber::ptr Fiber::GetThis() {
     }
     Fiber::ptr main_fiber(new Fiber);
     SYLAR_ASSERT(t_fiber == main_fiber.get());
-    t_threadFiber = main_fiber;
+    t_threadFiber = main_fiber; // 设置主协程
     return t_fiber->shared_from_this();
 }
 
@@ -176,8 +187,15 @@ void Fiber::YieldToReady() {
 void Fiber::YieldToHold() {
     Fiber::ptr cur = GetThis();
     SYLAR_ASSERT(cur->m_state == EXEC);
-    //cur->m_state = HOLD;
+    cur->m_state = HOLD;
     cur->swapOut();
+}
+
+void Fiber::Yield(){
+    Fiber::ptr cur = GetThis();
+    SYLAR_ASSERT(cur->m_state == EXEC);
+    cur->m_state = HOLD;
+    cur->back();
 }
 
 //总协程数
@@ -185,6 +203,7 @@ uint64_t Fiber::TotalFibers() {
     return s_fiber_count;
 }
 
+// swapIn <-> swapOut
 void Fiber::MainFunc() {
     Fiber::ptr cur = GetThis();
     SYLAR_ASSERT(cur);
@@ -213,6 +232,7 @@ void Fiber::MainFunc() {
     SYLAR_ASSERT2(false, "never reach fiber_id=" + std::to_string(raw_ptr->getId()));
 }
 
+// call <-> back
 void Fiber::CallerMainFunc() {
     Fiber::ptr cur = GetThis();
     SYLAR_ASSERT(cur);
