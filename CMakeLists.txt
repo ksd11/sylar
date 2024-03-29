@@ -16,6 +16,7 @@ set(CMAKE_C_FLAGS "$ENV{CXXFLAGS} -rdynamic -O0 -fPIC -ggdb -std=c11 -Wall -Wno-
 
 include_directories(.)
 include_directories(/apps/sylar/include)
+include_directories(/usr/include/jsoncpp)
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/thirdpart)
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/thirdpart/yaml-cpp/include)
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/thirdpart/jsoncpp-1.8.4/include)

@@ -398,7 +398,7 @@ public:
             if(v == m_val) {
                 return;
             }
-            for(auto& i : m_cbs) {
+            for(auto& i : m_cbs) { // 值改变进行回调
                 i.second(m_val, v);
             }
         }
@@ -481,12 +481,16 @@ public:
             const T& default_value, const std::string& description = "") {
         RWMutexType::WriteLock lock(GetMutex());
         auto it = GetDatas().find(name);
+
+        // 找到
         if(it != GetDatas().end()) {
+            // 向下转型，所以需要dynamic_pointer_cast
             auto tmp = std::dynamic_pointer_cast<ConfigVar<T> >(it->second);
             if(tmp) {
                 SYLAR_LOG_INFO(SYLAR_LOG_ROOT()) << "Lookup name=" << name << " exists";
                 return tmp;
             } else {
+            // 为空证明转型失败
                 SYLAR_LOG_ERROR(SYLAR_LOG_ROOT()) << "Lookup name=" << name << " exists but type not "
                         << TypeToName<T>() << " real_type=" << it->second->getTypeName()
                         << " " << it->second->toString();
@@ -494,6 +498,7 @@ public:
             }
         }
 
+        // 未找到，判断name是否包含非法字符
         if(name.find_first_not_of("abcdefghikjlmnopqrstuvwxyz._012345678")
                 != std::string::npos) {
             SYLAR_LOG_ERROR(SYLAR_LOG_ROOT()) << "Lookup name invalid " << name;
@@ -547,7 +552,7 @@ private:
      * @brief 返回所有的配置项
      */
     static ConfigVarMap& GetDatas() {
-        static ConfigVarMap s_datas;
+        static ConfigVarMap s_datas; // 保存所有的configVar
         return s_datas;
     }
 

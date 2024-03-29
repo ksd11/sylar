@@ -11,6 +11,7 @@
 
 namespace sylar {
 
+// level -> 字符串形式
 const char* LogLevel::ToString(LogLevel::Level level) {
     switch(level) {
 #define XX(name) \
@@ -94,6 +95,9 @@ LogFormatter::ptr LogAppender::getFormatter() {
     return m_formatter;
 }
 
+// LogFormatter::FormatItem --- start
+
+// 输出最终的消息
 class MessageFormatItem : public LogFormatter::FormatItem {
 public:
     MessageFormatItem(const std::string& str = "") {}
@@ -216,7 +220,7 @@ public:
 private:
     std::string m_string;
 };
-
+// LogFormatter::FormatItem --- end
 
 LogEvent::LogEvent(std::shared_ptr<Logger> logger, LogLevel::Level level
             ,const char* file, int32_t line, uint32_t elapse
@@ -263,7 +267,7 @@ void Logger::setFormatter(const std::string& val) {
     //m_formatter = new_val;
     setFormatter(new_val);
 }
-
+// log转成yaml string
 std::string Logger::toYamlString() {
     MutexType::Lock lock(m_mutex);
     YAML::Node node;
@@ -314,6 +318,7 @@ void Logger::clearAppenders() {
     m_appenders.clear();
 }
 
+// log记录日志——>调用logAppender记录日志
 void Logger::log(LogLevel::Level level, LogEvent::ptr event) {
     if(level >= m_level) {
         auto self = shared_from_this();
@@ -434,6 +439,8 @@ std::ostream& LogFormatter::format(std::ostream& ofs, std::shared_ptr<Logger> lo
     return ofs;
 }
 
+
+// 解析Formater String
 //%xxx %xxx{xxx} %%
 void LogFormatter::init() {
     //str, format, type
@@ -567,6 +574,7 @@ Logger::ptr LoggerManager::getLogger(const std::string& name) {
     return logger;
 }
 
+// log和config整合, appender是日志描述
 struct LogAppenderDefine {
     int type = 0; //1 File, 2 Stdout
     LogLevel::Level level = LogLevel::UNKNOW;
@@ -697,6 +705,7 @@ public:
     }
 };
 
+// g_log_defines记录了全局log定义信息，发生改变时（监听）会实际更改相应的log
 sylar::ConfigVar<std::set<LogDefine> >::ptr g_log_defines =
     sylar::Config::Lookup("logs", std::set<LogDefine>(), "logs config");
 

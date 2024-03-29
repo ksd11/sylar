@@ -54,7 +54,7 @@ void print_yaml(const YAML::Node& node, int level) {
         }
     }
 }
-
+// 把yaml文件读入
 void test_yaml() {
     YAML::Node root = YAML::LoadFile("./bin/conf/log.yml");
     // print_yaml(root, 0);
@@ -95,7 +95,8 @@ void test_config() {
     XX(g_int_uset_value_config, int_uset, before);
     XX_M(g_str_int_map_value_config, str_int_map, before);
     XX_M(g_str_int_umap_value_config, str_int_umap, before);
-
+    
+    // 从yaml文件读入配置
     YAML::Node root = YAML::LoadFile("./bin/conf/log.yml");
     sylar::Config::LoadFromYaml(root);
 
@@ -195,7 +196,7 @@ void test_class() {
     XX_PM(g_person_map, "class.map before");
     SYLAR_LOG_INFO(SYLAR_LOG_ROOT()) << "before: " << g_person_vec_map->toString();
 
-    YAML::Node root = YAML::LoadFile("/home/sylar/workspace/sylar/bin/conf/test.yml");
+    YAML::Node root = YAML::LoadFile("./bin/conf/person.yml");
     sylar::Config::LoadFromYaml(root);
 
     SYLAR_LOG_INFO(SYLAR_LOG_ROOT()) << "after: " << g_person->getValue().toString() << " - " << g_person->toString();
@@ -227,8 +228,8 @@ int main(int argc, char** argv) {
     // test_yaml();
     // test_config();
     // test_class();
-    test_log();
-    return 0;
+    // test_log();
+    // return 0;
     sylar::EnvMgr::GetInstance()->init(argc, argv);
     test_loadconf();
     std::cout << " ==== " << std::endl;
