@@ -158,7 +158,7 @@ private:
     /// 协程运行栈大小
     uint32_t m_stacksize = 0;
     /// 协程状态
-    State m_state = INIT;
+    State m_state = INIT; // 默认状态
     /// 协程上下文
     ucontext_t m_ctx;
     /// 协程运行栈指针

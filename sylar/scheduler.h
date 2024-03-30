@@ -76,6 +76,8 @@ public:
         bool need_tickle = false;
         {
             MutexType::Lock lock(m_mutex);
+
+            // 将任务加入到队列中，若任务队列中已经有任务了，则tickle
             need_tickle = scheduleNoLock(fc, thread);
         }
 
@@ -138,6 +140,7 @@ protected:
     bool hasIdleThreads() { return m_idleThreadCount > 0;}
 private:
     /**
+     * FiberOrCb 协程或函数类型
      * @brief 协程调度启动(无锁)
      */
     template<class FiberOrCb>
@@ -145,7 +148,7 @@ private:
         bool need_tickle = m_fibers.empty();
         FiberAndThread ft(fc, thread);
         if(ft.fiber || ft.cb) {
-            m_fibers.push_back(ft);
+            m_fibers.push_back(ft); // 任务添加到队列
         }
         return need_tickle;
     }
