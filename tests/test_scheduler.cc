@@ -7,6 +7,8 @@ void test_fiber() {
     SYLAR_LOG_INFO(g_logger) << "test in fiber s_count=" << s_count;
 
     sleep(1);
+    // sylar::Fiber::YieldToHold();
+    // SYLAR_LOG_INFO(g_logger) << "come back..................";
     if(--s_count >= 0) {
         // 固定只能当前线程去执行该协程任务
         sylar::Scheduler::GetThis()->schedule(&test_fiber, sylar::GetThreadId());
@@ -15,7 +17,7 @@ void test_fiber() {
 
 int main(int argc, char** argv) {
     SYLAR_LOG_INFO(g_logger) << "main";
-    sylar::Scheduler sc(1, false, "worker");
+    sylar::Scheduler sc(1, true, "worker");
     sc.start();
     sleep(2);
     SYLAR_LOG_INFO(g_logger) << "schedule";
