@@ -330,6 +330,7 @@ void IOManager::tickle() {
 
 bool IOManager::stopping(uint64_t& timeout) {
     timeout = getNextTimer();
+    // 没有定时器 + 没有待执行的任务 + shceduler调用了stop方法
     return timeout == ~0ull
         && m_pendingEventCount == 0
         && Scheduler::stopping();

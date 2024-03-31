@@ -100,7 +100,7 @@ void test1() {
 
 sylar::Timer::ptr s_timer;
 void test_timer() {
-    sylar::IOManager iom(2);
+    sylar::IOManager iom(1);
     s_timer = iom.addTimer(1000, [](){
         static int i = 0;
         SYLAR_LOG_INFO(g_logger) << "hello timer i=" << i;
@@ -108,11 +108,14 @@ void test_timer() {
             s_timer->reset(2000, true);
             //s_timer->cancel();
         }
+        if (i == 5) {
+            s_timer->cancel();
+        }
     }, true);
 }
 
 int main(int argc, char** argv) {
-    test1();
-    // test_timer();
+    // test1();
+    test_timer();
     return 0;
 }
