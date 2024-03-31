@@ -141,7 +141,7 @@ void Scheduler::setThis() {
 // 每个线程执行的函数
 void Scheduler::run() {
     SYLAR_LOG_DEBUG(g_logger) << m_name << " run";
-    // set_hook_enable(true);
+    set_hook_enable(true);
     setThis(); // 设置调度器线程，每个线程的调度器线程都是一样的
 
     // 非user_caller线程，每个线程设置自己的主协程
@@ -196,7 +196,7 @@ void Scheduler::run() {
             ft.fiber->swapIn(); // 切换协程
             --m_activeThreadCount; // 执行完成.
 
-            if(ft.fiber->getState() == Fiber::READY || ft.fiber->getState() == Fiber::HOLD) {
+            if(ft.fiber->getState() == Fiber::READY) {
                 // 将协程重新加入到队列
                 schedule(ft.fiber);
             } else if(ft.fiber->getState() != Fiber::TERM
@@ -213,7 +213,7 @@ void Scheduler::run() {
             ft.reset();
             cb_fiber->swapIn(); // 切换协程
             --m_activeThreadCount;
-            if(cb_fiber->getState() == Fiber::READY || cb_fiber->getState() == Fiber::HOLD){
+            if(cb_fiber->getState() == Fiber::READY){
                 schedule(cb_fiber);
                 cb_fiber.reset();
             } else if(cb_fiber->getState() == Fiber::EXCEPT

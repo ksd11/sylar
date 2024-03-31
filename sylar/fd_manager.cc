@@ -82,7 +82,7 @@ FdCtx::ptr FdManager::get(int fd, bool auto_create) {
             return nullptr;
         }
     } else {
-        if(m_datas[fd] || !auto_create) {
+        if(m_datas[fd] || !auto_create) { // 找到 or 没找到但不需要创建
             return m_datas[fd];
         }
     }
