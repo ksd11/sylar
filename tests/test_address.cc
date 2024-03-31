@@ -46,14 +46,27 @@ void test_iface() {
 void test_ipv4() {
     //auto addr = sylar::IPAddress::Create("www.sylar.top");
     auto addr = sylar::IPAddress::Create("127.0.0.8");
+    SYLAR_LOG_INFO(g_logger)<< addr->networdAddress(24)->toString();
+
+    SYLAR_LOG_INFO(g_logger)<< addr->subnetMask(24)->toString();
     if(addr) {
         SYLAR_LOG_INFO(g_logger) << addr->toString();
     }
 }
 
+void test_ip() {
+    // 查找域名
+    SYLAR_LOG_INFO(g_logger) << sylar::Address::LookupAny("www.baidu.com:80")->toString();
+    // auto addr = sylar::IPAddress::Create("www.baidu.com");
+    // if (addr) {
+    //     SYLAR_LOG_INFO(g_logger) << addr->toString();
+    // }
+}
+
 int main(int argc, char** argv) {
-    //test_ipv4();
-    //test_iface();
-    test();
+    // test_ipv4();
+    // test_iface();
+    // test();
+    test_ip();
     return 0;
 }

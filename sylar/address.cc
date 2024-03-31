@@ -11,11 +11,17 @@ namespace sylar {
 
 static sylar::Logger::ptr g_logger = SYLAR_LOG_NAME("system");
 
+/*
+例子：sizeof(T) = 4
+     bits = 24
+return : 0x000000ff
+*/
 template<class T>
 static T CreateMask(uint32_t bits) {
     return (1 << (sizeof(T) * 8 - bits)) - 1;
 }
 
+/* 根据掩码计算前缀长度 */
 template<class T>
 static uint32_t CountBytes(T value) {
     uint32_t result = 0;
@@ -25,6 +31,7 @@ static uint32_t CountBytes(T value) {
     return result;
 }
 
+// 静态方法，通过Host返回任意address
 Address::ptr Address::LookupAny(const std::string& host,
                                 int family, int type, int protocol) {
     std::vector<Address::ptr> result;
@@ -51,7 +58,7 @@ IPAddress::ptr Address::LookupAnyIPAddress(const std::string& host,
     return nullptr;
 }
 
-
+// 静态方法 通过host地址返回所有address
 bool Address::Lookup(std::vector<Address::ptr>& result, const std::string& host,
                      int family, int type, int protocol) {
     addrinfo hints, *results, *next;
@@ -126,6 +133,7 @@ bool Address::GetInterfaceAddresses(std::multimap<std::string
         for(next = results; next; next = next->ifa_next) {
             Address::ptr addr;
             uint32_t prefix_len = ~0u;
+            // 地址族确定，并且 该地址与解析出来的不同
             if(family != AF_UNSPEC && family != next->ifa_addr->sa_family) {
                 continue;
             }
@@ -165,6 +173,7 @@ bool Address::GetInterfaceAddresses(std::multimap<std::string
     return !result.empty();
 }
 
+// 获取指定网卡的地址和子网掩码位数
 bool Address::GetInterfaceAddresses(std::vector<std::pair<Address::ptr, uint32_t> >&result
                     ,const std::string& iface, int family) {
     if(iface.empty() || iface == "*") {
@@ -201,6 +210,7 @@ std::string Address::toString() const {
     return ss.str();
 }
 
+// 静态方法，通过sockaddr创建地址
 Address::ptr Address::Create(const sockaddr* addr, socklen_t addrlen) {
     if(addr == nullptr) {
         return nullptr;
@@ -272,6 +282,8 @@ IPAddress::ptr IPAddress::Create(const char* address, uint16_t port) {
     }
 }
 
+// ---- Ipv4 start ----
+
 IPv4Address::ptr IPv4Address::Create(const char* address, uint16_t port) {
     IPv4Address::ptr rt(new IPv4Address);
     rt->m_addr.sin_port = byteswapOnLittleEndian(port);
@@ -336,7 +348,7 @@ IPAddress::ptr IPv4Address::networdAddress(uint32_t prefix_len) {
 
     sockaddr_in baddr(m_addr);
     baddr.sin_addr.s_addr &= byteswapOnLittleEndian(
-            CreateMask<uint32_t>(prefix_len));
+            ~CreateMask<uint32_t>(prefix_len));
     return IPv4Address::ptr(new IPv4Address(baddr));
 }
 
@@ -355,6 +367,8 @@ uint32_t IPv4Address::getPort() const {
 void IPv4Address::setPort(uint16_t v) {
     m_addr.sin_port = byteswapOnLittleEndian(v);
 }
+
+// ----- ipv6 satrt -----
 
 IPv6Address::ptr IPv6Address::Create(const char* address, uint16_t port) {
     IPv6Address::ptr rt(new IPv6Address);
@@ -464,6 +478,8 @@ void IPv6Address::setPort(uint16_t v) {
     m_addr.sin6_port = byteswapOnLittleEndian(v);
 }
 
+// ---- unix address start -----
+
 static const size_t MAX_PATH_LEN = sizeof(((sockaddr_un*)0)->sun_path) - 1;
 
 UnixAddress::UnixAddress() {
@@ -524,6 +540,8 @@ std::ostream& UnixAddress::insert(std::ostream& os) const {
     }
     return os << m_addr.sun_path;
 }
+
+// ---- unknow address start -----
 
 UnknownAddress::UnknownAddress(int family) {
     memset(&m_addr, 0, sizeof(m_addr));
