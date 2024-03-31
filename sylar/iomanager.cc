@@ -59,6 +59,7 @@ static std::ostream& operator<< (std::ostream& os, EPOLL_EVENTS events) {
     return os;
 }
 
+// 根据event类型，返回相应的EventContext
 IOManager::FdContext::EventContext& IOManager::FdContext::getContext(IOManager::Event event) {
     switch(event) {
         case IOManager::READ:
@@ -112,12 +113,12 @@ IOManager::IOManager(size_t threads, bool use_caller, const std::string& name)
     rt = fcntl(m_tickleFds[0], F_SETFL, O_NONBLOCK);
     SYLAR_ASSERT(!rt);
 
-    rt = epoll_ctl(m_epfd, EPOLL_CTL_ADD, m_tickleFds[0], &event);
+    rt = epoll_ctl(m_epfd, EPOLL_CTL_ADD, m_tickleFds[0], &event); // 监听管道读端
     SYLAR_ASSERT(!rt);
 
     contextResize(32);
 
-    start();
+    start(); // IO Manager继承了scheduler，调用start方法启动调度器
 }
 
 IOManager::~IOManager() {
@@ -145,6 +146,7 @@ void IOManager::contextResize(size_t size) {
 }
 
 int IOManager::addEvent(int fd, Event event, std::function<void()> cb) {
+    // 找到fd对应的FdContext
     FdContext* fd_ctx = nullptr;
     RWMutexType::ReadLock lock(m_mutex);
     if((int)m_fdContexts.size() > fd) {
@@ -158,6 +160,8 @@ int IOManager::addEvent(int fd, Event event, std::function<void()> cb) {
     }
 
     FdContext::MutexType::Lock lock2(fd_ctx->mutex);
+    
+    // 添加的事件已经被添加了
     if(SYLAR_UNLIKELY(fd_ctx->events & event)) {
         SYLAR_LOG_ERROR(g_logger) << "addEvent assert fd=" << fd
                     << " event=" << (EPOLL_EVENTS)event
@@ -165,6 +169,7 @@ int IOManager::addEvent(int fd, Event event, std::function<void()> cb) {
         SYLAR_ASSERT(!(fd_ctx->events & event));
     }
 
+    // 之前有事件？修改事件：添加事件
     int op = fd_ctx->events ? EPOLL_CTL_MOD : EPOLL_CTL_ADD;
     epoll_event epevent;
     epevent.events = EPOLLET | fd_ctx->events | event;
@@ -181,6 +186,8 @@ int IOManager::addEvent(int fd, Event event, std::function<void()> cb) {
 
     ++m_pendingEventCount;
     fd_ctx->events = (Event)(fd_ctx->events | event);
+
+    // 设置event context
     FdContext::EventContext& event_ctx = fd_ctx->getContext(event);
     SYLAR_ASSERT(!event_ctx.scheduler
                 && !event_ctx.fiber
@@ -198,6 +205,7 @@ int IOManager::addEvent(int fd, Event event, std::function<void()> cb) {
 }
 
 bool IOManager::delEvent(int fd, Event event) {
+    // 找到对应的FdContext
     RWMutexType::ReadLock lock(m_mutex);
     if((int)m_fdContexts.size() <= fd) {
         return false;
@@ -231,6 +239,7 @@ bool IOManager::delEvent(int fd, Event event) {
     return true;
 }
 
+// 取消事件会触发该事件
 bool IOManager::cancelEvent(int fd, Event event) {
     RWMutexType::ReadLock lock(m_mutex);
     if((int)m_fdContexts.size() <= fd) {
@@ -258,6 +267,7 @@ bool IOManager::cancelEvent(int fd, Event event) {
         return false;
     }
 
+    // cancel时，还会触发一次？
     fd_ctx->triggerEvent(event);
     --m_pendingEventCount;
     return true;
@@ -306,10 +316,14 @@ IOManager* IOManager::GetThis() {
     return dynamic_cast<IOManager*>(Scheduler::GetThis());
 }
 
+// Tickle会往管道写数据
 void IOManager::tickle() {
+    // 没有Idle threads，不用唤醒
     if(!hasIdleThreads()) {
         return;
     }
+
+    // 唤醒idle线程
     int rt = write(m_tickleFds[1], "T", 1);
     SYLAR_ASSERT(rt == 1);
 }
@@ -322,13 +336,18 @@ bool IOManager::stopping(uint64_t& timeout) {
 
 }
 
+// 重写停止条件
 bool IOManager::stopping() {
     uint64_t timeout = 0;
     return stopping(timeout);
 }
 
+// 重写Idle协程
+// 调用epoll_wait
 void IOManager::idle() {
     SYLAR_LOG_DEBUG(g_logger) << "idle";
+    
+    // 为epoll event分配空间，epoll_wait返回的事件会填充到events中
     const uint64_t MAX_EVNETS = 256;
     epoll_event* events = new epoll_event[MAX_EVNETS]();
     std::shared_ptr<epoll_event> shared_events(events, [](epoll_event* ptr){
@@ -352,6 +371,13 @@ void IOManager::idle() {
             } else {
                 next_timeout = MAX_TIMEOUT;
             }
+            /* 
+                epoll_wait会有线程安全问题吗？多个线程都会对同一个epfd调用epoll_wait
+             * 阻塞在这里，但有3中情况能够唤醒epoll_wait
+             * 1. 超时时间到了
+             * 2. 关注的 soket 有数据来了
+             * 3. 通过 tickle 往 pipe 里发数据，表明有任务来了
+             */
             rt = epoll_wait(m_epfd, events, MAX_EVNETS, (int)next_timeout);
             if(rt < 0 && errno == EINTR) {
             } else {
@@ -360,7 +386,10 @@ void IOManager::idle() {
         } while(true);
 
         std::vector<std::function<void()> > cbs;
+        // 获取已经超时的任务
         listExpiredCb(cbs);
+
+        // 全部放到任务队列中
         if(!cbs.empty()) {
             //SYLAR_LOG_DEBUG(g_logger) << "on timer cbs.size=" << cbs.size();
             schedule(cbs.begin(), cbs.end());
@@ -371,14 +400,19 @@ void IOManager::idle() {
         //    SYLAR_LOG_INFO(g_logger) << "epoll wait events=" << rt;
         //}
 
+        // 遍历已经准备好的fd
         for(int i = 0; i < rt; ++i) {
+            // 从events中拿一个envent
             epoll_event& event = events[i];
+
+            // 如果获得的这个信息是来自Pipe
             if(event.data.fd == m_tickleFds[0]) {
                 uint8_t dummy[256];
                 while(read(m_tickleFds[0], dummy, sizeof(dummy)) > 0);
                 continue;
             }
 
+            // 从ptr中拿出FdContext
             FdContext* fd_ctx = (FdContext*)event.data.ptr;
             FdContext::MutexType::Lock lock(fd_ctx->mutex);
             if(event.events & (EPOLLERR | EPOLLHUP)) {
@@ -396,6 +430,7 @@ void IOManager::idle() {
                 continue;
             }
 
+            // 剩余的事件
             int left_events = (fd_ctx->events & ~real_events);
             int op = left_events ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
             event.events = EPOLLET | left_events;
@@ -410,21 +445,27 @@ void IOManager::idle() {
 
             //SYLAR_LOG_INFO(g_logger) << " fd=" << fd_ctx->fd << " events=" << fd_ctx->events
             //                         << " real_events=" << real_events;
+
+            // 读事件准备好了，执行读事件
             if(real_events & READ) {
                 fd_ctx->triggerEvent(READ);
                 --m_pendingEventCount;
             }
+
+            // 写事件准备好了，执行写事件
             if(real_events & WRITE) {
                 fd_ctx->triggerEvent(WRITE);
                 --m_pendingEventCount;
             }
         }
 
-        Fiber::ptr cur = Fiber::GetThis();
-        auto raw_ptr = cur.get();
-        cur.reset();
+        // 有啥用??
+        // Fiber::ptr cur = Fiber::GetThis();
+        // auto raw_ptr = cur.get();
+        // cur.reset();
 
-        raw_ptr->swapOut();
+        // raw_ptr->swapOut();
+        Fiber::GetThis()->swapOut();
     }
 }
 
