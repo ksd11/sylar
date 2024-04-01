@@ -22,6 +22,7 @@ EchoServer::EchoServer(int type)
 void EchoServer::handleClient(sylar::Socket::ptr client) {
     SYLAR_LOG_INFO(g_logger) << "handleClient " << *client;   
     sylar::ByteArray::ptr ba(new sylar::ByteArray);
+    // 不断处理用户请求
     while(true) {
         ba->clear();
         std::vector<iovec> iovs;

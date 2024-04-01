@@ -32,6 +32,7 @@ void TcpServer::setConf(const TcpServerConf& v) {
     m_conf.reset(new TcpServerConf(v));
 }
 
+// 绑定单个地址
 bool TcpServer::bind(sylar::Address::ptr addr, bool ssl) {
     std::vector<Address::ptr> addrs;
     std::vector<Address::ptr> fails;
@@ -39,34 +40,42 @@ bool TcpServer::bind(sylar::Address::ptr addr, bool ssl) {
     return bind(addrs, fails, ssl);
 }
 
+// 绑定多个地址
 bool TcpServer::bind(const std::vector<Address::ptr>& addrs
                         ,std::vector<Address::ptr>& fails
                         ,bool ssl) {
     m_ssl = ssl;
     for(auto& addr : addrs) {
+        // 创建TCP socket
         Socket::ptr sock = ssl ? SSLSocket::CreateTCP(addr) : Socket::CreateTCP(addr);
+        // bind
         if(!sock->bind(addr)) {
             SYLAR_LOG_ERROR(g_logger) << "bind fail errno="
                 << errno << " errstr=" << strerror(errno)
                 << " addr=[" << addr->toString() << "]";
+            // bind失败加入失败数组
             fails.push_back(addr);
             continue;
         }
+        // 监听
         if(!sock->listen()) {
             SYLAR_LOG_ERROR(g_logger) << "listen fail errno="
                 << errno << " errstr=" << strerror(errno)
                 << " addr=[" << addr->toString() << "]";
+            // 监听失败放入失败数组
             fails.push_back(addr);
             continue;
         }
         m_socks.push_back(sock);
     }
 
+    // 有绑定失败的地址，清空监听socket数组
     if(!fails.empty()) {
         m_socks.clear();
         return false;
     }
 
+    // 绑定成功
     for(auto& i : m_socks) {
         SYLAR_LOG_INFO(g_logger) << "type=" << m_type
             << " name=" << m_name
@@ -76,6 +85,7 @@ bool TcpServer::bind(const std::vector<Address::ptr>& addrs
     return true;
 }
 
+// 开始接受连接
 void TcpServer::startAccept(Socket::ptr sock) {
     while(!m_isStop) {
         Socket::ptr client = sock->accept();
@@ -90,11 +100,13 @@ void TcpServer::startAccept(Socket::ptr sock) {
     }
 }
 
+// 启动服务，调用startAccept
 bool TcpServer::start() {
     if(!m_isStop) {
         return true;
     }
     m_isStop = false;
+    // 每个socket接受连接任务放入任务队列中
     for(auto& sock : m_socks) {
         m_acceptWorker->schedule(std::bind(&TcpServer::startAccept,
                     shared_from_this(), sock));
@@ -115,7 +127,9 @@ void TcpServer::stop() {
 }
 
 void TcpServer::handleClient(Socket::ptr client) {
+    // TODO. 这里是可以对client读写事件进行监听处理的
     SYLAR_LOG_INFO(g_logger) << "handleClient: " << *client;
+    // 返回后，client会被析构，关闭连接
 }
 
 bool TcpServer::loadCertificates(const std::string& cert_file, const std::string& key_file) {
