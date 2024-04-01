@@ -11,26 +11,28 @@ HttpSession::HttpSession(Socket::ptr sock, bool owner)
 HttpRequest::ptr HttpSession::recvRequest() {
     HttpRequestParser::ptr parser(new HttpRequestParser);
     uint64_t buff_size = HttpRequestParser::GetHttpRequestBufferSize();
-    //uint64_t buff_size = 100;
+    // uint64_t buff_size = 100;
     std::shared_ptr<char> buffer(
             new char[buff_size], [](char* ptr){
                 delete[] ptr;
             });
     char* data = buffer.get();
     int offset = 0;
+
+    // 读请求头
     do {
-        int len = read(data + offset, buff_size - offset);
+        int len = read(data + offset, buff_size - offset); // TODO. 能读多少读多少，数据读多了会不会出问题？
         if(len <= 0) {
             close();
             return nullptr;
         }
-        len += offset;
-        size_t nparse = parser->execute(data, len);
+        len += offset; // 总共读了多少了
+        size_t nparse = parser->execute(data, len); // TODO. BUG? execute 会修改data的内容
         if(parser->hasError()) {
             close();
             return nullptr;
         }
-        offset = len - nparse;
+        offset = len - nparse; // 还有一些没解析的
         if(offset == (int)buff_size) {
             close();
             return nullptr;
@@ -39,12 +41,15 @@ HttpRequest::ptr HttpSession::recvRequest() {
             break;
         }
     } while(true);
+
+    // 若有请求体，读请求体
     int64_t length = parser->getContentLength();
     if(length > 0) {
         std::string body;
         body.resize(length);
 
         int len = 0;
+        // TODO. BUG?
         if(length >= offset) {
             memcpy(&body[0], data, offset);
             len = offset;
