@@ -64,6 +64,7 @@ HttpRequest::HttpRequest(uint8_t version, bool close)
     ,m_path("/") {
 }
 
+// 在header里取值，若不存在，则返回默认值
 std::string HttpRequest::getHeader(const std::string& key
                             ,const std::string& def) const {
     auto it = m_headers.find(key);
@@ -209,7 +210,9 @@ void HttpRequest::initParam() {
     initCookies();
 }
 
+// 获取url中的参数 name=123&age=12
 void HttpRequest::initQueryParam() {
+    // 要是已经解析过，直接返回
     if(m_parserParamFlag & 0x1) {
         return;
     }
@@ -236,10 +239,13 @@ void HttpRequest::initQueryParam() {
     m_parserParamFlag |= 0x1;
 }
 
+// 获取body中的参数
 void HttpRequest::initBodyParam() {
     if(m_parserParamFlag & 0x2) {
         return;
     }
+
+    // 要是没有content-type表单数据，直接返回
     std::string content_type = getHeader("content-type");
     if(strcasestr(content_type.c_str(), "application/x-www-form-urlencoded") == nullptr) {
         m_parserParamFlag |= 0x2;
@@ -253,15 +259,19 @@ void HttpRequest::initCookies() {
     if(m_parserParamFlag & 0x4) {
         return;
     }
+    // 没有cooking字段，证明没有cookie?
     std::string cookie = getHeader("cookie");
     if(cookie.empty()) {
         m_parserParamFlag |= 0x4;
         return;
     }
+    // cookie如：name=123;age=12
     PARSE_PARAM(cookie, m_cookies, ';', sylar::StringUtil::Trim);
     m_parserParamFlag |= 0x4;
 }
 
+
+// ------ response start ----------
 
 HttpResponse::HttpResponse(uint8_t version, bool close)
     :m_status(HttpStatus::OK)

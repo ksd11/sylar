@@ -142,6 +142,7 @@ void on_request_http_field(void *data, const char *field, size_t flen
                                 ,std::string(value, vlen));
 }
 
+// 当解析到时调用回调函数，将对应的数据保存到报文中
 HttpRequestParser::HttpRequestParser()
     :m_error(0) {
     m_data.reset(new sylar::http::HttpRequest);
@@ -177,6 +178,8 @@ int HttpRequestParser::isFinished() {
 int HttpRequestParser::hasError() {
     return m_error || http_parser_has_error(&m_parser);
 }
+
+// --- response start ----
 
 void on_response_reason(void *data, const char *at, size_t length) {
     HttpResponseParser* parser = static_cast<HttpResponseParser*>(data);
