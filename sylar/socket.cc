@@ -11,6 +11,7 @@ namespace sylar {
 static sylar::Logger::ptr g_logger = SYLAR_LOG_NAME("system");
 
 Socket::ptr Socket::CreateTCP(sylar::Address::ptr address) {
+    // 只是new了一个Socket对象, 并没有创建socket
     Socket::ptr sock(new Socket(address->getFamily(), TCP, 0));
     return sock;
 }
@@ -77,6 +78,7 @@ int64_t Socket::getSendTimeout() {
 }
 
 void Socket::setSendTimeout(int64_t v) {
+    // 秒，微秒 10^(-6)
     struct timeval tv{int(v / 1000), int(v % 1000 * 1000)};
     setOption(SOL_SOCKET, SO_SNDTIMEO, tv);
 }
@@ -129,6 +131,7 @@ Socket::ptr Socket::accept() {
     return nullptr;
 }
 
+// 设置socket的一些状态信息
 bool Socket::init(int sock) {
     FdCtx::ptr ctx = FdMgr::GetInstance()->get(sock);
     if(ctx && ctx->isSocket() && !ctx->isClose()) {
@@ -186,6 +189,7 @@ bool Socket::reconnect(uint64_t timeout_ms) {
     return connect(m_remoteAddress, timeout_ms);
 }
 
+// 连接addr, 超时时间timeout_ms
 bool Socket::connect(const Address::ptr addr, uint64_t timeout_ms) {
     m_remoteAddress = addr;
     if(!isValid()) {
@@ -202,6 +206,7 @@ bool Socket::connect(const Address::ptr addr, uint64_t timeout_ms) {
         return false;
     }
 
+    // 没有设置超时时间
     if(timeout_ms == (uint64_t)-1) {
         if(::connect(m_sock, addr->getAddr(), addr->getAddrLen())) {
             SYLAR_LOG_ERROR(g_logger) << "sock=" << m_sock << " connect(" << addr->toString()
@@ -210,6 +215,7 @@ bool Socket::connect(const Address::ptr addr, uint64_t timeout_ms) {
             return false;
         }
     } else {
+        // 设置了超时时间
         if(::connect_with_timeout(m_sock, addr->getAddr(), addr->getAddrLen(), timeout_ms)) {
             SYLAR_LOG_ERROR(g_logger) << "sock=" << m_sock << " connect(" << addr->toString()
                 << ") timeout=" << timeout_ms << " error errno="

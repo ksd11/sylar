@@ -98,7 +98,7 @@ void test2() {
 
 int main(int argc, char** argv) {
     sylar::IOManager iom;
-    //iom.schedule(&test_socket);
+    // iom.schedule(&test_socket);
     iom.schedule(&test2);
     return 0;
 }
