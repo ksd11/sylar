@@ -26,7 +26,7 @@ public:
     typedef std::shared_ptr<ByteArray> ptr;
 
     /**
-     * @brief ByteArray的存储节点
+     * @brief ByteArray的存储节点,(一个内存块)
      */
     struct Node {
         /**

@@ -3,6 +3,8 @@
 
 static sylar::Logger::ptr g_logger = SYLAR_LOG_ROOT();
 void test() {
+
+// 只有read
 #define XX(type, len, write_fun, read_fun, base_len) {\
     std::vector<type> vec; \
     for(int i = 0; i < len; ++i) { \
@@ -39,6 +41,7 @@ void test() {
     XX(uint64_t, 100, writeUint64, readUint64, 1);
 #undef XX
 
+// read + write
 #define XX(type, len, write_fun, read_fun, base_len) {\
     std::vector<type> vec; \
     for(int i = 0; i < len; ++i) { \

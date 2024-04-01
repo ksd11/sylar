@@ -109,6 +109,14 @@ void ByteArray::writeFuint64(uint64_t value) {
     write(&value, sizeof(value));
 }
 
+/*
+0  --> 0
+-1 --> 1*2-1 -> 1
+1  --> 1*2 -> 2
+-2 --> 3
+2  --> 4
+...
+*/
 static uint32_t EncodeZigzag32(const int32_t& v) {
     if(v < 0) {
         return ((uint32_t)(-v)) * 2 - 1;
@@ -125,6 +133,16 @@ static uint64_t EncodeZigzag64(const int64_t& v) {
     }
 }
 
+/*
+由EncodeZigzag32可知，奇数是负数，偶数是正数
+若v是奇数，(v & 1)是1，-1则为 1111..1
+          和-1异或相当于取反。假设v=3, 则原数为 
+          -(v+1)/2 = -((v-1)>>1 + 1)
+                   = -((v-1)>>1) - 1
+                   = ~((v-1)>>1)
+若v是偶数，(v & 1)是0, 则只需将原数右移一位即可
+
+*/
 static int32_t DecodeZigzag32(const uint32_t& v) {
     return (v >> 1) ^ -(v & 1);
 }
@@ -133,11 +151,12 @@ static int64_t DecodeZigzag64(const uint64_t& v) {
     return (v >> 1) ^ -(v & 1);
 }
 
-
+// 写varint_32，首先将有符号变为无符号，然后写入变长无符号
 void ByteArray::writeInt32  (int32_t value) {
     writeUint32(EncodeZigzag32(value));
 }
 
+// 写var_uint_32
 void ByteArray::writeUint32 (uint32_t value) {
     uint8_t tmp[5];
     uint8_t i = 0;
@@ -177,7 +196,7 @@ void ByteArray::writeDouble (double value) {
 }
 
 void ByteArray::writeStringF16(const std::string& value) {
-    writeFuint16(value.size());
+    writeFuint16(value.size()); // 先写数组长度
     write(value.c_str(), value.size());
 }
 
@@ -192,7 +211,7 @@ void ByteArray::writeStringF64(const std::string& value) {
 }
 
 void ByteArray::writeStringVint(const std::string& value) {
-    writeUint64(value.size());
+    writeUint64(value.size()); // 变长表示字符串长度
     write(value.c_str(), value.size());
 }
 
@@ -328,6 +347,7 @@ std::string ByteArray::readStringVint() {
     return buff;
 }
 
+// 除了第一个内存块外，其他都删除
 void ByteArray::clear() {
     m_position = m_size = 0;
     m_capacity = m_baseSize;
@@ -341,17 +361,19 @@ void ByteArray::clear() {
     m_root->next = NULL;
 }
 
+// 将Buf里的size个字节写入ByteArray
 void ByteArray::write(const void* buf, size_t size) {
     if(size == 0) {
         return;
     }
-    addCapacity(size);
+    addCapacity(size); // 确保空间足够
 
-    size_t npos = m_position % m_baseSize;
-    size_t ncap = m_cur->size - npos;
-    size_t bpos = 0;
+    size_t npos = m_position % m_baseSize; // 在内存块的偏移
+    size_t ncap = m_cur->size - npos; // 当前内存块剩余的空间
+    size_t bpos = 0; // 指向buffer的偏移
 
     while(size > 0) {
+        // 剩余空间足够
         if(ncap >= size) {
             memcpy(m_cur->ptr + npos, (const char*)buf + bpos, size);
             if(m_cur->size == (npos + size)) {
@@ -361,6 +383,7 @@ void ByteArray::write(const void* buf, size_t size) {
             bpos += size;
             size = 0;
         } else {
+        // 剩余空间不够，先把一个内存块填满
             memcpy(m_cur->ptr + npos, (const char*)buf + bpos, ncap);
             m_position += ncap;
             bpos += ncap;
@@ -371,11 +394,13 @@ void ByteArray::write(const void* buf, size_t size) {
         }
     }
 
+    // 更新m_size
     if(m_position > m_size) {
         m_size = m_position;
     }
 }
 
+// 读size个字节到buf
 void ByteArray::read(void* buf, size_t size) {
     if(size > getReadSize()) {
         throw std::out_of_range("not enough len");
@@ -385,6 +410,7 @@ void ByteArray::read(void* buf, size_t size) {
     size_t ncap = m_cur->size - npos;
     size_t bpos = 0;
     while(size > 0) {
+        // 剩余空间足够，够读size个字节
         if(ncap >= size) {
             memcpy((char*)buf + bpos, m_cur->ptr + npos, size);
             if(m_cur->size == (npos + size)) {
@@ -405,6 +431,7 @@ void ByteArray::read(void* buf, size_t size) {
     }
 }
 
+// 从postition（参数）位置开始读，而不是从m_position（成员变量）开始读
 void ByteArray::read(void* buf, size_t size, size_t position) const {
     if(size > (m_size - position)) {
         throw std::out_of_range("not enough len");
@@ -443,6 +470,7 @@ void ByteArray::setPosition(size_t v) {
     if(m_position > m_size) {
         m_size = m_position;
     }
+    // 链表遍历到当前位置
     m_cur = m_root;
     while(v > m_cur->size) {
         v -= m_cur->size;
@@ -495,22 +523,26 @@ bool ByteArray::readFromFile(const std::string& name) {
     return true;
 }
 
+// 判断写入size，bytearray空间够不够，不够则扩容
 void ByteArray::addCapacity(size_t size) {
     if(size == 0) {
         return;
     }
+
+    // 空间足够，直接返回
     size_t old_cap = getCapacity();
     if(old_cap >= size) {
         return;
     }
 
-    size = size - old_cap;
+    size = size - old_cap; // size为还差的空间
     size_t count = ceil(1.0 * size / m_baseSize);
     Node* tmp = m_root;
     while(tmp->next) {
         tmp = tmp->next;
     }
 
+    // tmp保存了node链表最后一个节点
     Node* first = NULL;
     for(size_t i = 0; i < count; ++i) {
         tmp->next = new Node(m_baseSize);
@@ -541,6 +573,7 @@ std::string ByteArray::toHexString() const {
     std::stringstream ss;
 
     for(size_t i = 0; i < str.size(); ++i) {
+        // 32字节换行
         if(i > 0 && i % 32 == 0) {
             ss << std::endl;
         }
@@ -583,6 +616,8 @@ uint64_t ByteArray::getReadBuffers(std::vector<iovec>& buffers, uint64_t len) co
     return size;
 }
 
+// 获取可读缓存，不改变m_position
+// position: 从哪里开始读， len: 读几个字节
 uint64_t ByteArray::getReadBuffers(std::vector<iovec>& buffers
                                 ,uint64_t len, uint64_t position) const {
     len = len > getReadSize() ? getReadSize() : len;
@@ -600,9 +635,10 @@ uint64_t ByteArray::getReadBuffers(std::vector<iovec>& buffers
         --count;
     }
 
-    size_t ncap = cur->size - npos;
+    size_t ncap = cur->size - npos; // 剩余可读的字节数
     struct iovec iov;
     while(len > 0) {
+        // 剩余可读的字节数够读len个字节
         if(ncap >= len) {
             iov.iov_base = cur->ptr + npos;
             iov.iov_len = len;
@@ -620,6 +656,7 @@ uint64_t ByteArray::getReadBuffers(std::vector<iovec>& buffers
     return size;
 }
 
+// 获取可写缓存，不改变m_position
 uint64_t ByteArray::getWriteBuffers(std::vector<iovec>& buffers, uint64_t len) {
     if(len == 0) {
         return 0;
