@@ -23,7 +23,7 @@ namespace sylar {
 namespace http {
 
 /**
- * @brief Servlet封装
+ * @brief Servlet封装, 抽象类
  */
 class Servlet {
 public:
@@ -88,6 +88,8 @@ private:
     callback m_cb;
 };
 
+// ServletDispatch -> IServletCreator -> Servlet
+// 加一层有什么好处呢?
 class IServletCreator {
 public:
     typedef std::shared_ptr<IServletCreator> ptr;
@@ -168,7 +170,7 @@ public:
      * @param[in] uri uri 模糊匹配 /sylar_*
      * @param[in] slt servlet
      */
-    void addGlobServlet(const std::string& uri, Servlet::ptr slt);
+    void addGlobServlet(const std::string& uri, Servlet::ptr slt); // glob 通配符
 
     /**
      * @brief 添加模糊匹配servlet

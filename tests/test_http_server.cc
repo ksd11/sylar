@@ -16,6 +16,8 @@ void run() {
         sleep(2);
     }
     auto sd = server->getServletDispatch();
+
+    // 精准匹配    
     sd->addServlet("/sylar/xx", [](sylar::http::HttpRequest::ptr req
                 ,sylar::http::HttpResponse::ptr rsp
                 ,sylar::http::HttpSession::ptr session) {
@@ -23,6 +25,7 @@ void run() {
             return 0;
     });
 
+    // 模糊匹配
     sd->addGlobServlet("/sylar/*", [](sylar::http::HttpRequest::ptr req
                 ,sylar::http::HttpResponse::ptr rsp
                 ,sylar::http::HttpSession::ptr session) {
@@ -30,6 +33,7 @@ void run() {
             return 0;
     });
 
+    // 模糊匹配
     sd->addGlobServlet("/sylarx/*", [](sylar::http::HttpRequest::ptr req
                 ,sylar::http::HttpResponse::ptr rsp
                 ,sylar::http::HttpSession::ptr session) {

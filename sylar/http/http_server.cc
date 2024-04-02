@@ -41,6 +41,8 @@ void HttpServer::handleClient(Socket::ptr client) {
         HttpResponse::ptr rsp(new HttpResponse(req->getVersion()
                             ,req->isClose() || !m_isKeepalive));
         rsp->setHeader("Server", getName());
+
+        // 根据Dispatch中设置的servlet处理
         m_dispatch->handle(req, rsp, session);
         // rsp->setBody("hello world");
         session->sendResponse(rsp);
