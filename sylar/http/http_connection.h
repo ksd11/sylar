@@ -320,12 +320,12 @@ public:
 private:
     static void ReleasePtr(HttpConnection* ptr, HttpConnectionPool* pool);
 private:
-    std::string m_host;
+    std::string m_host; // 主机
     std::string m_vhost;
-    uint32_t m_port;
-    uint32_t m_maxSize;
-    uint32_t m_maxAliveTime;
-    uint32_t m_maxRequest;
+    uint32_t m_port; // 端口
+    uint32_t m_maxSize; // 连接最大数
+    uint32_t m_maxAliveTime; // 连接时长
+    uint32_t m_maxRequest;   // 一个http_connection最大请求次数
     bool m_isHttps;
 
     MutexType m_mutex;

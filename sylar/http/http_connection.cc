@@ -17,6 +17,8 @@ std::string HttpResult::toString() const {
     return ss.str();
 }
 
+// ----- http connection start ---------
+
 HttpConnection::HttpConnection(Socket::ptr sock, bool owner)
     :SocketStream(sock, owner) {
 }
@@ -25,6 +27,7 @@ HttpConnection::~HttpConnection() {
     SYLAR_LOG_DEBUG(g_logger) << "HttpConnection::~HttpConnection";
 }
 
+// 支持chunk响应
 HttpResponse::ptr HttpConnection::recvResponse() {
     HttpResponseParser::ptr parser(new HttpResponseParser);
     uint64_t buff_size = HttpRequestParser::GetHttpRequestBufferSize();
@@ -210,6 +213,7 @@ HttpResult::ptr HttpConnection::DoRequest(HttpMethod method
     return DoRequest(method, uri, timeout_ms, headers, body);
 }
 
+// 将header body uri等封装成一个request然后发送
 HttpResult::ptr HttpConnection::DoRequest(HttpMethod method
                             , Uri::ptr uri
                             , uint64_t timeout_ms
@@ -221,6 +225,7 @@ HttpResult::ptr HttpConnection::DoRequest(HttpMethod method
     req->setFragment(uri->getFragment());
     req->setMethod(method);
     bool has_host = false;
+    // 设置header
     for(auto& i : headers) {
         if(strcasecmp(i.first.c_str(), "connection") == 0) {
             if(strcasecmp(i.second.c_str(), "keep-alive") == 0) {
@@ -242,6 +247,7 @@ HttpResult::ptr HttpConnection::DoRequest(HttpMethod method
     return DoRequest(req, uri, timeout_ms);
 }
 
+// 进行一次request，并返回httpResult结构体（成功则携带httpResponse）
 HttpResult::ptr HttpConnection::DoRequest(HttpRequest::ptr req
                             , Uri::ptr uri
                             , uint64_t timeout_ms) {
@@ -283,6 +289,8 @@ HttpResult::ptr HttpConnection::DoRequest(HttpRequest::ptr req
     return std::make_shared<HttpResult>((int)HttpResult::Error::OK, rsp, "ok");
 }
 
+// ----- HttpConnectionPool -- start ------
+
 HttpConnectionPool::ptr HttpConnectionPool::Create(const std::string& uri
                                                    ,const std::string& vhost
                                                    ,uint32_t max_size
@@ -313,9 +321,12 @@ HttpConnectionPool::HttpConnectionPool(const std::string& host
     ,m_isHttps(is_https) {
 }
 
+// 获得连接
 HttpConnection::ptr HttpConnectionPool::getConnection() {
     uint64_t now_ms = sylar::GetCurrentMS();
     std::vector<HttpConnection*> invalid_conns;
+
+    // ptr保存了可用的http connection
     HttpConnection* ptr = nullptr;
     MutexType::Lock lock(m_mutex);
     while(!m_conns.empty()) {
@@ -333,6 +344,7 @@ HttpConnection::ptr HttpConnectionPool::getConnection() {
         break;
     }
     lock.unlock();
+    // 释放无效的http connection
     for(auto i : invalid_conns) {
         delete i;
     }
@@ -363,7 +375,7 @@ HttpConnection::ptr HttpConnectionPool::getConnection() {
 }
 
 void HttpConnectionPool::ReleasePtr(HttpConnection* ptr, HttpConnectionPool* pool) {
-    ++ptr->m_request;
+    ++ptr->m_request; // 增加此connection的请求次数
     if(!ptr->isConnected()
             || ((ptr->m_createTime + pool->m_maxAliveTime) >= sylar::GetCurrentMS())
             || (ptr->m_request >= pool->m_maxRequest)) {
@@ -466,6 +478,7 @@ HttpResult::ptr HttpConnectionPool::doRequest(HttpMethod method
 
 HttpResult::ptr HttpConnectionPool::doRequest(HttpRequest::ptr req
                                         , uint64_t timeout_ms) {
+    // 从pool里获取一个连接
     auto conn = getConnection();
     if(!conn) {
         return std::make_shared<HttpResult>((int)HttpResult::Error::POOL_GET_CONNECTION

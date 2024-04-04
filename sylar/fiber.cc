@@ -226,6 +226,7 @@ void Fiber::MainFunc() {
     }
 
     auto raw_ptr = cur.get();
+    // SYLAR_LOG_DEBUG(g_logger) << "----" << cur.use_count();
     cur.reset();
     raw_ptr->swapOut();
 

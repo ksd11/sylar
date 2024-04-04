@@ -159,7 +159,7 @@ void test_parser() {
 
 int main(int argc, char** argv) {
     sylar::IOManager iom(2);
-    //iom.schedule(run);
-    iom.schedule(test_https);
+    iom.schedule(run);
+    // iom.schedule(test_https);
     return 0;
 }

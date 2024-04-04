@@ -34,3 +34,5 @@ bin/
 !bin/*/
 .vscode/
 mytest-code/
+html/
+latex/

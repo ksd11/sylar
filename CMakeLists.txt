@@ -32,6 +32,9 @@ if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
+# libmariadb-dev-compat
+set(MYSQL_INCLUDE_DIR "/usr/include/mariadb")
+
 find_package(MySQL REQUIRED)
 if(MYSQL_FOUND)
     include_directories(${MYSQL_INCLUDE_DIR})
@@ -193,6 +196,7 @@ sylar_add_executable(test_lru "tests/test_lru.cc" sylar "${LIBS}")
 sylar_add_executable(test_timed_cache "tests/test_timed_cache.cc" sylar "${LIBS}")
 sylar_add_executable(test_timed_lru_cache "tests/test_timed_lru_cache.cc" sylar "${LIBS}")
 sylar_add_executable(test_zlib_stream "tests/test_zlib_stream.cc" sylar "${LIBS}")
+sylar_add_executable(test_ap "tests/test_ap.cc" sylar "${LIBS}")
 
 endif()
 sylar_add_executable(test_crypto "tests/test_crypto.cc" sylar "${LIBS}")
