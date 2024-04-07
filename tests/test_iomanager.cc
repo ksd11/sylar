@@ -95,7 +95,7 @@ void test1() {
     std::cout << "EPOLLIN=" << EPOLLIN
               << " EPOLLOUT=" << EPOLLOUT << std::endl;
     sylar::IOManager iom(2, false);
-    iom.schedule(&test_fiber);
+    iom.schedule(&test_fiber_1);
 }
 
 sylar::Timer::ptr s_timer;
@@ -115,7 +115,7 @@ void test_timer() {
 }
 
 int main(int argc, char** argv) {
-    // test1();
-    test_timer();
+    test1();
+    // test_timer();
     return 0;
 }

@@ -358,6 +358,7 @@ void IOManager::idle() {
     while(true) {
         uint64_t next_timeout = 0;
         if(SYLAR_UNLIKELY(stopping(next_timeout))) {
+            tickle();
             SYLAR_LOG_INFO(g_logger) << "name=" << getName()
                                      << " idle stopping exit";
             break;
@@ -460,13 +461,13 @@ void IOManager::idle() {
             }
         }
 
-        // 有啥用??
-        // Fiber::ptr cur = Fiber::GetThis();
-        // auto raw_ptr = cur.get();
-        // cur.reset();
-
-        // raw_ptr->swapOut();
-        Fiber::GetThis()->swapOut();
+        Fiber::ptr cur = Fiber::GetThis();
+        auto raw_ptr = cur.get();
+        cur.reset();
+        raw_ptr->swapOut();
+        
+        // 下面这样返回，可能智能指针无法释放
+        // Fiber::GetThis()->swapOut();
     }
 }
 

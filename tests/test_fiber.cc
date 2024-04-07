@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     sylar::Thread::SetName("main");
 
     std::vector<sylar::Thread::ptr> thrs;
-    for(int i = 0; i < 3; ++i) {
+    for(int i = 0; i < 1; ++i) {
         thrs.push_back(sylar::Thread::ptr(
                     new sylar::Thread(&test_fiber, "name_" + std::to_string(i))));
     }
